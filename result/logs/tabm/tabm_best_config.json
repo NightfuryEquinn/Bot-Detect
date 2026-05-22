@@ -1,0 +1,13 @@
+{
+  "config_id": 1,
+  "arch_type": "tabm",
+  "k": 12,
+  "n_blocks": 3,
+  "d_block": 192,
+  "dropout": 0.15,
+  "lr": 0.001,
+  "weight_decay": 0.001,
+  "use_num_embeddings": true,
+  "pos_weight_scale": 0.75,
+  "preprocessor": "quantile"
+}

@@ -4,45 +4,25 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import os
-import sys
 from datetime import datetime
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import classification_report, roc_auc_score, average_precision_score, precision_recall_curve
 from torch_geometric.nn import HypergraphConv
 import copy
+from utils.shared import DualLogger, setup_logger, FocalLoss
 
 
 # =============================================================================
 # 1. SETUP & MULTI-VIEW DATA CONSTRUCTION
 # =============================================================================
-class DualLogger(object):
-    def __init__(self, filename):
-        self.terminal = sys.stdout
-        self.log = open(filename, "w", encoding="utf-8")
-
-    def write(self, message):
-        self.terminal.write(message)
-        self.log.write(message)
-        self.log.flush()
-
-    def flush(self):
-        self.terminal.flush()
-        self.log.flush()
-
-
-def setup_logger(output_dir, file_name):
-    os.makedirs(output_dir, exist_ok=True)
-    log_file_path = os.path.join(output_dir, f"log_{file_name}.txt")
-    sys.stdout = DualLogger(log_file_path)
-    return log_file_path
-
-
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-setup_logger("./result", f"ST_MV_HGNN_{timestamp}")
+setup_logger("./result/logs/stmvhgnn", f"ST_MV_HGNN_{timestamp}")
 
 DATA_PATH = "./datasets"
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+assert torch.cuda.is_available(), "CUDA GPU is required but not available."
+device = torch.device("cuda")
+print(f"Using GPU: {torch.cuda.get_device_name(0)}")
 
 # Load datasets
 train_df = pd.read_csv(f"{DATA_PATH}/train_features.csv")
@@ -245,23 +225,6 @@ class STMVHGNN(nn.Module):
         return self.classifier(final_repr)
 
 
-class FocalLoss(nn.Module):
-    def __init__(self, alpha=0.75, gamma=2.0, smoothing=0.01):
-        super().__init__()
-        self.alpha = alpha
-        self.gamma = gamma
-        self.smoothing = smoothing
-
-    def forward(self, inputs, targets):
-        targets_smooth = targets * (1 - self.smoothing) + 0.5 * self.smoothing
-        BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets_smooth, reduction='none')
-        pt = torch.exp(-BCE_loss)
-        alpha_t = targets * self.alpha + (1 - targets) * (1 - self.alpha)
-
-        F_loss = alpha_t * (1 - pt) ** self.gamma * BCE_loss
-        return F_loss.mean()
-
-
 # =============================================================================
 # 3. K-FOLD TRAINING ENGINE
 # =============================================================================
@@ -373,13 +336,27 @@ def train_kfold(k=5):
 
     print(classification_report(labeled_y, (oof_probs > best_thresh).astype(int), target_names=['Human', 'Robot']))
 
+    os.makedirs("result/logs/stmvhgnn", exist_ok=True)
+    pd.DataFrame([{
+        "model": "ST-MV-HGNN",
+        "oof_auc": float(oof_auc),
+        "oof_ap": float(oof_ap),
+        "cv_auc_mean": float(np.mean(fold_aucs)),
+        "cv_auc_std": float(np.std(fold_aucs)),
+        "cv_ap_mean": float(np.mean(fold_aps)),
+        "best_f1": float(best_f1),
+        "best_threshold": float(best_thresh),
+    }]).to_csv("result/logs/stmvhgnn/stmvhgnn_summary.csv", index=False)
+    print("Saved result/logs/stmvhgnn/stmvhgnn_summary.csv")
+
     return test_probs_acc
 
 
 # Execute and Save
 final_test_probs = train_kfold(k=5)
 
+os.makedirs("result/stmvhgnn", exist_ok=True)
 test_bidders = test_df['bidder_id'].values
 test_preds = [final_test_probs[bidder_to_idx[b_id]] for b_id in test_bidders]
-pd.DataFrame({'bidder_id': test_bidders, 'prediction': test_preds}).to_csv("./result/stmvhgnn_final_oof_results.csv", index=False)
-print("\nFinal submission generated: stmvhgnn_final_oof_results.csv")
+pd.DataFrame({'bidder_id': test_bidders, 'prediction': test_preds}).to_csv("result/stmvhgnn/stmvhgnn_final_oof_results.csv", index=False)
+print("\nFinal submission generated: result/stmvhgnn/stmvhgnn_final_oof_results.csv")
