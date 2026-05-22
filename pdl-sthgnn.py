@@ -8,7 +8,7 @@ import sys
 from datetime import datetime
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import classification_report, roc_auc_score, average_precision_score, precision_recall_curve, f1_score
+from sklearn.metrics import classification_report, roc_auc_score, average_precision_score, precision_recall_curve
 from torch_geometric.nn import HypergraphConv
 import copy
 
@@ -17,10 +17,6 @@ import copy
 # 1. SETUP & DATA CONSTRUCTION
 # =============================================================================
 class DualLogger(object):
-    """
-    Redirects stdout to both the terminal and a log file.
-    """
-
     def __init__(self, filename):
         self.terminal = sys.stdout
         self.log = open(filename, "w", encoding="utf-8")
@@ -36,10 +32,6 @@ class DualLogger(object):
 
 
 def setup_logger(output_dir, file_name):
-    """
-    Sets up the logger to write to a file in output_dir.
-    Returns the full path to the log file.
-    """
     os.makedirs(output_dir, exist_ok=True)
     log_file_path = os.path.join(output_dir, f"log_{file_name}.txt")
     sys.stdout = DualLogger(log_file_path)
@@ -47,7 +39,7 @@ def setup_logger(output_dir, file_name):
 
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-setup_logger("./result", f"BotSTHCL_{timestamp}")
+setup_logger("./result",f"ST_HGNN_{timestamp}")
 
 DATA_PATH = "./datasets"
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -109,29 +101,8 @@ y = torch.tensor(labels, dtype=torch.long).to(device)
 
 
 # =============================================================================
-# 2. CONTRASTIVE LOSS & ST-HGNN NETWORK
+# 2. ST-HGNN NETWORK
 # =============================================================================
-def info_nce_loss(z1, z2, temperature=0.5, sample_size=1024):
-    """
-    Computes InfoNCE loss with in-batch negatives for Contrastive Learning.
-    Limits sample size to prevent OOM errors on large hypergraphs.
-    """
-    num_nodes = z1.size(0)
-    if num_nodes > sample_size:
-        idx = torch.randperm(num_nodes, device=z1.device)[:sample_size]
-        z1 = z1[idx]
-        z2 = z2[idx]
-
-    z1 = F.normalize(z1, dim=1)
-    z2 = F.normalize(z2, dim=1)
-
-    # Cosine similarity matrix
-    logits = torch.matmul(z1, z2.T) / temperature
-    labels = torch.arange(logits.size(0), device=z1.device)
-
-    return F.cross_entropy(logits, labels)
-
-
 class STHGNN(nn.Module):
     def __init__(self, in_channels, hidden_channels, temporal_indices=None, seq_len=5):
         super().__init__()
@@ -147,13 +118,6 @@ class STHGNN(nn.Module):
         # Stability layers
         self.ln1 = nn.LayerNorm(hidden_channels)
         self.ln2 = nn.LayerNorm(hidden_channels)
-
-        # Projector head for Contrastive Learning
-        self.projector = nn.Sequential(
-            nn.Linear(hidden_channels, hidden_channels),
-            nn.ELU(),
-            nn.Linear(hidden_channels, hidden_channels)
-        )
 
         # Temporal branch (Transformer)
         if self.temp_dim > 0:
@@ -189,23 +153,19 @@ class STHGNN(nn.Module):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
-    # Separated spatial encoding logic for reuse in CL
-    def encode_spatial(self, x, edge_index, edge_weight):
-        z1 = F.leaky_relu(self.ln1(self.spatial_conv1(x, edge_index, hyperedge_weight=edge_weight)), 0.2)
-        z2 = F.leaky_relu(self.ln2(self.spatial_conv2(z1, edge_index, hyperedge_weight=edge_weight)), 0.2)
-        return z1 + z2
-
-    def forward(self, x, edge_index, edge_weight, return_spatial=False):
-        # View 1: Structural (Spatial)
-        # Hyperedge Dropout (10%) during main forward pass for structural robustness
+    def forward(self, x, edge_index, edge_weight):
+        # Hyperedge Dropout (10%) during training to improve generalization
         if self.training:
             num_edges = edge_index.size(1)
-            mask = torch.bernoulli(torch.full((num_edges,), 0.9)).to(x.device).bool()
+            mask = torch.bernoulli(torch.full((num_edges,), 0.8)).to(x.device).bool()
             curr_edge_index = edge_index[:, mask]
         else:
             curr_edge_index = edge_index
 
-        z_spatial = self.encode_spatial(x, curr_edge_index, edge_weight)
+        # View 1: Structural (Spatial)
+        z1 = F.leaky_relu(self.ln1(self.spatial_conv1(x, curr_edge_index, hyperedge_weight=edge_weight)), 0.2)
+        z2 = F.leaky_relu(self.ln2(self.spatial_conv2(z1, curr_edge_index, hyperedge_weight=edge_weight)), 0.2)
+        z_spatial = z1 + z2
 
         # View 2: Behavioral (Static Features)
         x_static = x[:, self.static_indices]
@@ -229,26 +189,23 @@ class STHGNN(nn.Module):
         g = torch.sigmoid(self.gate_fc2(se))
         z_fused = g * z_spatial + (1 - g) * z_bt
 
-        logits = self.classifier(z_fused)
-
-        # Allow returning spatial embeddings for CL reuse
-        if return_spatial:
-            return logits, z_spatial
-        return logits
+        return self.classifier(z_fused)
 
 
 class FocalLoss(nn.Module):
-    def __init__(self, alpha=25, gamma=2, smoothing=0.1):
+    def __init__(self, alpha=0.75, gamma=2.0, smoothing=0.01):
         super().__init__()
         self.alpha = alpha
         self.gamma = gamma
         self.smoothing = smoothing
 
     def forward(self, inputs, targets):
-        targets = targets * (1 - self.smoothing) + 0.5 * self.smoothing
-        BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none')
-        pt = torch.exp(-BCE_loss)  # Prevents gradient explosion
-        F_loss = self.alpha * (1 - pt) ** self.gamma * BCE_loss
+        targets_smooth = targets * (1 - self.smoothing) + 0.5 * self.smoothing
+        BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets_smooth, reduction='none')
+        pt = torch.exp(-BCE_loss)
+        alpha_t = targets * self.alpha + (1 - targets) * (1 - self.alpha)
+
+        F_loss = alpha_t * (1 - pt) ** self.gamma * BCE_loss
         return F_loss.mean()
 
 
@@ -265,19 +222,15 @@ def train_kfold(k=5):
     oof_probs = np.zeros(len(labeled_indices))
     test_probs_acc = np.zeros(num_nodes)
 
-    criterion = FocalLoss(alpha=25, gamma=2)
+    criterion = FocalLoss(alpha=0.85, gamma=2.5)
 
     print(f"Starting {k}-Fold Cross-Validation with Checkpointing...")
 
     EARLY_STOPPING_PATIENCE = 25
 
-    # Contrastive learning hyperparams
-    tau = 0.5
-    lambda_cl = 0.1
-
     for fold, (t_idx, v_idx) in enumerate(skf.split(labeled_indices, labeled_y)):
         model = STHGNN(x.shape[1], 64, temporal_indices).to(device)
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-3)
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-4)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=150)
 
         f_train_mask = torch.zeros(num_nodes, dtype=torch.bool).to(device)
@@ -294,38 +247,8 @@ def train_kfold(k=5):
         for epoch in range(200):
             model.train()
             optimizer.zero_grad()
-
-            if epoch % 5 == 0:
-                # 1. Main Pass (Reuse spatial embeddings)
-                out, z_main = model(x, edge_index, hyperedge_weight, return_spatial=True)
-                out = out.squeeze()
-                cls_loss = criterion(out[f_train_mask], y[f_train_mask].float())
-
-                # 2. Single Combined Augmentation (Mask attributes + Drop nodes)
-                drop_mask = torch.rand(x.shape, device=device) < 0.1
-                x_aug = x.clone()
-                x_aug[drop_mask] = 0
-
-                edge_mask = torch.rand(edge_index.size(1), device=device) > 0.1
-                edge_index_aug = edge_index[:, edge_mask]
-
-                # 3. Compute ONLY ONE extra spatial encoding
-                z_aug = model.encode_spatial(x_aug, edge_index_aug, hyperedge_weight)
-
-                # 4. Project and compute InfoNCE
-                z1 = model.projector(z_main)
-                z2 = model.projector(z_aug)
-                cl_loss = info_nce_loss(z1, z2, temperature=tau, sample_size=512)
-
-                # Combine loss (lowered lambda to 0.05 so CL doesn't overpower Cls loss)
-                loss = cls_loss + (0.05 * cl_loss)
-            else:
-                # Fast standard forward pass
-                out = model(x, edge_index, hyperedge_weight).squeeze()
-                cls_loss = criterion(out[f_train_mask], y[f_train_mask].float())
-                loss = cls_loss
-                cl_loss = torch.tensor(0.0)  # Dummy for logging
-
+            out = model(x, edge_index, hyperedge_weight).squeeze()
+            loss = criterion(out[f_train_mask], y[f_train_mask].float())
             loss.backward()
             optimizer.step()
 
@@ -337,7 +260,6 @@ def train_kfold(k=5):
                 v_labels_epoch = y[f_val_mask].cpu().numpy()
                 val_auc = roc_auc_score(v_labels_epoch, v_probs_epoch)
 
-                # Checkpoint the best version of the model
                 if val_auc > best_auc:
                     best_auc = val_auc
                     best_model_state = copy.deepcopy(model.state_dict())
@@ -352,11 +274,9 @@ def train_kfold(k=5):
                 break
 
             if epoch % 10 == 0:
-                print(f"Epoch {epoch} | Loss: {loss.item():.4f} (Cls: {cls_loss.item():.4f}, CL: {cl_loss.item():.4f}) | Val AUC: {val_auc:.4f} (Best: {best_auc:.4f})")
+                print(f"Epoch {epoch} | Loss: {loss.item():.4f} | Val AUC: {val_auc:.4f} (Best: {best_auc:.4f})")
 
-        # Reload the BEST model state before finalizing the fold
         model.load_state_dict(best_model_state)
-
         model.eval()
         with torch.no_grad():
             full_logits = model(x, edge_index, hyperedge_weight).squeeze()
@@ -378,7 +298,6 @@ def train_kfold(k=5):
     oof_auc = roc_auc_score(labeled_y, oof_probs)
     oof_ap = average_precision_score(labeled_y, oof_probs)
 
-    # Optimized Threshold on OOF Predictions
     prec, rec, thresholds = precision_recall_curve(labeled_y, oof_probs)
     f1_scores = (2 * prec * rec) / (prec + rec + 1e-8)
     best_idx = np.argmax(f1_scores)
@@ -386,9 +305,9 @@ def train_kfold(k=5):
     best_thresh = thresholds[best_idx]
 
     print("\n" + "=" * 60)
-    print("FINAL SUMMARY (BotSTHCL)")
+    print("FINAL SUMMARY (ST-HGNN)")
     print("=" * 60)
-    print(f"  Model                    : BotSTHCL (Spatio-Temporal Hypergraph CL)")
+    print(f"  Model                    : ST-HGNN (Spatio-Temporal Hypergraph)")
     print(f"  CV Folds                 : {k}")
     print(f"  CV AUC (mean)            : {np.mean(fold_aucs):.4f}")
     print(f"  CV AUC (std)             : {np.std(fold_aucs):.4f}")
@@ -409,7 +328,5 @@ final_test_probs = train_kfold(k=5)
 
 test_bidders = test_df['bidder_id'].values
 test_preds = [final_test_probs[bidder_to_idx[b_id]] for b_id in test_bidders]
-pd.DataFrame({'bidder_id': test_bidders, 'prediction': test_preds}).to_csv("./result/botsthcl_final_oof_results.csv",
-                                                                           index=False)
-
-print("\nFinal submission generated: botsthcl_final_oof_results.csv")
+pd.DataFrame({'bidder_id': test_bidders, 'prediction': test_preds}).to_csv("result/sthgnn_final_oof_results.csv", index=False)
+print("\nFinal submission generated: sthgnn_final_oof_results.csv")
