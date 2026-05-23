@@ -1,0 +1,92 @@
+Using GPU: NVIDIA A100-SXM4-80GB
+Detected 15 temporal features for 5 time strips.
+Multi-View Hypergraphs constructed successfully.
+Starting 5-Fold Cross-Validation with Checkpointing...
+
+--- FOLD 1 ---
+Epoch 0 | Loss: 0.0389 | Val AUC: 0.7620 (Best: 0.7620)
+Epoch 10 | Loss: 0.0126 | Val AUC: 0.8320 (Best: 0.8489)
+Epoch 20 | Loss: 0.0107 | Val AUC: 0.8419 (Best: 0.8489)
+Epoch 30 | Loss: 0.0099 | Val AUC: 0.8569 (Best: 0.8580)
+Epoch 40 | Loss: 0.0090 | Val AUC: 0.8604 (Best: 0.8604)
+Epoch 50 | Loss: 0.0079 | Val AUC: 0.8507 (Best: 0.8633)
+Epoch 60 | Loss: 0.0079 | Val AUC: 0.8556 (Best: 0.8633)
+Epoch 70 | Loss: 0.0068 | Val AUC: 0.8554 (Best: 0.8633)
+Epoch 80 | Loss: 0.0063 | Val AUC: 0.8518 (Best: 0.8633)
+Early stopping triggered at epoch 81
+Fold 1 Finished. Best Fold AUC: 0.8633
+
+--- FOLD 2 ---
+Epoch 0 | Loss: 0.0349 | Val AUC: 0.8630 (Best: 0.8630)
+Epoch 10 | Loss: 0.0163 | Val AUC: 0.9094 (Best: 0.9124)
+Epoch 20 | Loss: 0.0128 | Val AUC: 0.9065 (Best: 0.9124)
+Epoch 30 | Loss: 0.0117 | Val AUC: 0.9223 (Best: 0.9232)
+Epoch 40 | Loss: 0.0107 | Val AUC: 0.9347 (Best: 0.9347)
+Epoch 50 | Loss: 0.0095 | Val AUC: 0.9301 (Best: 0.9347)
+Epoch 60 | Loss: 0.0089 | Val AUC: 0.9253 (Best: 0.9347)
+Epoch 70 | Loss: 0.0080 | Val AUC: 0.9197 (Best: 0.9347)
+Early stopping triggered at epoch 80
+Fold 2 Finished. Best Fold AUC: 0.9347
+
+--- FOLD 3 ---
+Epoch 0 | Loss: 0.0464 | Val AUC: 0.8357 (Best: 0.8357)
+Epoch 10 | Loss: 0.0138 | Val AUC: 0.8700 (Best: 0.8709)
+Epoch 20 | Loss: 0.0114 | Val AUC: 0.8877 (Best: 0.8877)
+Epoch 30 | Loss: 0.0093 | Val AUC: 0.8955 (Best: 0.9000)
+Epoch 40 | Loss: 0.0086 | Val AUC: 0.8846 (Best: 0.9000)
+Epoch 50 | Loss: 0.0080 | Val AUC: 0.8715 (Best: 0.9000)
+Epoch 60 | Loss: 0.0072 | Val AUC: 0.8856 (Best: 0.9000)
+Early stopping triggered at epoch 67
+Fold 3 Finished. Best Fold AUC: 0.9000
+
+--- FOLD 4 ---
+Epoch 0 | Loss: 0.0360 | Val AUC: 0.8160 (Best: 0.8160)
+Epoch 10 | Loss: 0.0136 | Val AUC: 0.8401 (Best: 0.8577)
+Epoch 20 | Loss: 0.0121 | Val AUC: 0.8478 (Best: 0.8577)
+Epoch 30 | Loss: 0.0109 | Val AUC: 0.8726 (Best: 0.8729)
+Epoch 40 | Loss: 0.0102 | Val AUC: 0.8772 (Best: 0.8787)
+Epoch 50 | Loss: 0.0088 | Val AUC: 0.8847 (Best: 0.8847)
+Epoch 60 | Loss: 0.0081 | Val AUC: 0.8712 (Best: 0.8848)
+Epoch 70 | Loss: 0.0083 | Val AUC: 0.8623 (Best: 0.8848)
+Epoch 80 | Loss: 0.0073 | Val AUC: 0.8630 (Best: 0.8848)
+Epoch 90 | Loss: 0.0062 | Val AUC: 0.8474 (Best: 0.8848)
+Early stopping triggered at epoch 91
+Fold 4 Finished. Best Fold AUC: 0.8848
+
+--- FOLD 5 ---
+Epoch 0 | Loss: 0.0845 | Val AUC: 0.8034 (Best: 0.8034)
+Epoch 10 | Loss: 0.0141 | Val AUC: 0.8938 (Best: 0.8938)
+Epoch 20 | Loss: 0.0113 | Val AUC: 0.9051 (Best: 0.9051)
+Epoch 30 | Loss: 0.0101 | Val AUC: 0.9024 (Best: 0.9094)
+Epoch 40 | Loss: 0.0101 | Val AUC: 0.8984 (Best: 0.9094)
+Epoch 50 | Loss: 0.0095 | Val AUC: 0.8975 (Best: 0.9094)
+Epoch 60 | Loss: 0.0086 | Val AUC: 0.8973 (Best: 0.9094)
+Early stopping triggered at epoch 62
+Fold 5 Finished. Best Fold AUC: 0.9094
+
+============================================================
+FINAL SUMMARY (ST-MV-HGNN)
+============================================================
+  Model                    : ST-MV-HGNN (Spatio-Temporal Multi-View Hypergraph)
+  CV Folds                 : 5
+  CV AUC (mean)            : 0.8984
+  CV AUC (std)             : 0.0239
+  CV AP  (mean)            : 0.4365
+  OOF AUC                  : 0.8938
+  OOF AP                   : 0.3917
+  Best F1                  : 0.4633
+  Best Threshold           : 0.5203
+============================================================
+
+              precision    recall  f1-score   support
+
+       Human       0.98      0.95      0.96      1910
+       Robot       0.38      0.57      0.46       103
+
+    accuracy                           0.93      2013
+   macro avg       0.68      0.76      0.71      2013
+weighted avg       0.95      0.93      0.94      2013
+
+Saved result/logs/stmvhgnn/stmvhgnn_summary.csv
+
+Final submission generated: result/stmvhgnn/stmvhgnn_final_oof_results.csv
