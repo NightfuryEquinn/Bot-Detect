@@ -498,11 +498,11 @@ for fold, (tr_idx, val_idx) in enumerate(skf.split(X_train_scaled, y_train), 1):
 
     oof_preds[val_idx] = val_proba
 
-    auc = roc_auc_score(y_val_np, val_proba)
+    fold_auc = roc_auc_score(y_val_np, val_proba)
     ap  = average_precision_score(y_val_np, val_proba)
-    fold_aucs.append(auc)
+    fold_aucs.append(fold_auc)
     fold_aps.append(ap)
-    print(f"  Fold {fold} — AUC: {auc:.4f} | AP: {ap:.4f}")
+    print(f"  Fold {fold} — AUC: {fold_auc:.4f} | AP: {ap:.4f}")
 
     with torch.no_grad():
         test_logits  = model(X_test_tensor.to(DEVICE), use_intersample=False)
