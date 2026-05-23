@@ -17,7 +17,11 @@ from dataclasses import dataclass
 
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler, OrdinalEncoder
-from sklearn.metrics import roc_auc_score, average_precision_score, log_loss
+from sklearn.metrics import (
+    roc_auc_score, average_precision_score, log_loss,
+    roc_curve, precision_recall_curve, confusion_matrix, classification_report,
+    auc, f1_score, precision_score, recall_score,
+)
 
 import torch
 import torch.nn as nn
@@ -640,11 +644,24 @@ for fold, (tr_idx, val_idx) in enumerate(skf.split(tabr_train_full, labels_full)
 # ─── Post-loop: OOF metrics ───────────────────────────────────────────────────
 tabr_oof_auc = roc_auc_score(labels_full, oof_preds)
 tabr_oof_ap  = average_precision_score(labels_full, oof_preds)
+tabr_prec, tabr_rec, _ = precision_recall_curve(labels_full, oof_preds)
+tabr_pr_auc = auc(tabr_rec, tabr_prec)
+
+tabr_thresholds_search = np.arange(0.05, 0.95, 0.01)
+tabr_f1s = [f1_score(labels_full, (oof_preds >= t).astype(int)) for t in tabr_thresholds_search]
+tabr_best_thresh = tabr_thresholds_search[int(np.argmax(tabr_f1s))]
+tabr_oof_labels = (oof_preds >= tabr_best_thresh).astype(int)
+tabr_oof_precision = precision_score(labels_full, tabr_oof_labels)
+tabr_oof_recall = recall_score(labels_full, tabr_oof_labels)
+tabr_oof_f1 = float(np.max(tabr_f1s))
 
 print(f"\nCV AUC  : {np.mean(fold_aucs):.4f} ± {np.std(fold_aucs):.4f}")
 print(f"CV AP   : {np.mean(fold_aps):.4f} ± {np.std(fold_aps):.4f}")
 print(f"OOF AUC : {tabr_oof_auc:.4f}")
 print(f"OOF AP  : {tabr_oof_ap:.4f}")
+print(f"OOF PR-AUC  : {tabr_pr_auc:.4f}")
+print(f"OOF F1      : {tabr_oof_f1:.4f}  (thresh={tabr_best_thresh:.2f})")
+print(f"OOF Prec    : {tabr_oof_precision:.4f}  |  OOF Recall : {tabr_oof_recall:.4f}")
 
 # Aliases used by downstream sections (plots, XAI)
 tabr_val_pred  = oof_preds
@@ -683,10 +700,8 @@ neutral_color = PALETTE.get("neutral", "#6C757D")
 # -------------------------------------------------------------------------
 # 15a. ROC + PR curves
 # -------------------------------------------------------------------------
-from sklearn.metrics import roc_curve, precision_recall_curve, confusion_matrix, classification_report
-
 fpr, tpr, _ = roc_curve(y_val_np, tabr_val_pred)
-prec, rec, _ = precision_recall_curve(y_val_np, tabr_val_pred)
+prec, rec = tabr_prec, tabr_rec
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 fig.suptitle(f"TabR — OOF (5-fold CV)  AUC={tabr_oof_auc:.4f}  AP={tabr_oof_ap:.4f}", fontsize=14)
@@ -1049,11 +1064,16 @@ print("Saved:", TABR_SUBMISSION_PATH)
 print("Saved:", TABR_MODEL_PATH)
 
 pd.DataFrame([{
-    "model":       "TabR",
-    "oof_auc":     float(tabr_oof_auc),
-    "oof_ap":      float(tabr_oof_ap),
-    "cv_auc_mean": float(np.mean(fold_aucs)),
-    "cv_auc_std":  float(np.std(fold_aucs)),
-    "cv_ap_mean":  float(np.mean(fold_aps)),
+    "model":          "TabR",
+    "oof_auc":        float(tabr_oof_auc),
+    "oof_ap":         float(tabr_oof_ap),
+    "oof_pr_auc":     float(tabr_pr_auc),
+    "oof_precision":  float(tabr_oof_precision),
+    "oof_recall":     float(tabr_oof_recall),
+    "oof_f1":         float(tabr_oof_f1),
+    "best_threshold": float(tabr_best_thresh),
+    "cv_auc_mean":    float(np.mean(fold_aucs)),
+    "cv_auc_std":     float(np.std(fold_aucs)),
+    "cv_ap_mean":     float(np.mean(fold_aps)),
 }]).to_csv("result/logs/tabr/tabr_summary.csv", index=False)
 print("Saved: result/logs/tabr/tabr_summary.csv")

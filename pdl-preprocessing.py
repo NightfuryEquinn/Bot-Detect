@@ -29,7 +29,8 @@ from sklearn.calibration import CalibratedClassifierCV, calibration_curve
 from sklearn.inspection import permutation_importance
 from sklearn.metrics import (
     roc_auc_score, roc_curve, confusion_matrix, classification_report,
-    precision_recall_curve, average_precision_score,
+    precision_recall_curve, average_precision_score, auc,
+    f1_score, precision_score, recall_score,
 )
 from sklearn.preprocessing import LabelEncoder
 
@@ -535,6 +536,15 @@ print(f"\nOOF AUC (RF) : {oof_auc_rf:.4f}")
 fpr, tpr, _ = roc_curve(y, oof_proba_rf)
 prec, rec, _ = precision_recall_curve(y, oof_proba_rf)
 ap_rf = average_precision_score(y, oof_proba_rf)
+pr_auc_rf = auc(rec, prec)
+
+thresholds_rf = np.arange(0.05, 0.95, 0.01)
+f1s_rf = [f1_score(y, (oof_proba_rf >= t).astype(int)) for t in thresholds_rf]
+best_thresh_rf = thresholds_rf[int(np.argmax(f1s_rf))]
+rf_oof_labels = (oof_proba_rf >= best_thresh_rf).astype(int)
+precision_rf = precision_score(y, rf_oof_labels)
+recall_rf = recall_score(y, rf_oof_labels)
+f1_rf = float(np.max(f1s_rf))
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 fig.suptitle(f"Random Forest — OOF AUC={oof_auc_rf:.4f}", fontsize=14)
@@ -626,12 +636,18 @@ pd.DataFrame([{
     "model":               "RandomForest",
     "oof_auc":             float(oof_auc_rf),
     "oof_ap":              float(ap_rf),
+    "oof_pr_auc":          float(pr_auc_rf),
+    "oof_precision":       float(precision_rf),
+    "oof_recall":          float(recall_rf),
+    "oof_f1":              float(f1_rf),
+    "best_threshold":      float(best_thresh_rf),
     "oof_pred_bot_rate":   float(oof_proba_rf.mean()),
     "test_pred_bot_rate":  float(test_proba_rf.mean()),
 }]).to_csv(f"{RF_LOG}/rf_summary.csv", index=False)
 
 print(f"\n✓ Random Forest baseline complete.")
-print(f"  OOF AUC   : {oof_auc_rf:.4f}  |  OOF AP : {ap_rf:.4f}")
+print(f"  OOF AUC   : {oof_auc_rf:.4f}  |  OOF AP : {ap_rf:.4f}  |  PR-AUC : {pr_auc_rf:.4f}")
+print(f"  Precision : {precision_rf:.4f}  |  Recall : {recall_rf:.4f}  |  F1 : {f1_rf:.4f}  (thresh={best_thresh_rf:.2f})")
 print(f"  Plots     : {RF_DIR}/rf_*.png")
 print(f"  Submission: {RF_DIR}/rf_submission.csv")
 print(f"  Summary   : {RF_LOG}/rf_summary.csv")
@@ -710,6 +726,15 @@ print(f"Bot rate test cal   : {test_proba_lgbm.mean():.4f}  (expected ~{train_pr
 fpr, tpr, _ = roc_curve(y, oof_proba_lgbm)
 prec, rec, _ = precision_recall_curve(y, oof_proba_lgbm)
 ap_lgbm = average_precision_score(y, oof_proba_lgbm)
+pr_auc_lgbm = auc(rec, prec)
+
+thresholds_lgbm = np.arange(0.05, 0.95, 0.01)
+f1s_lgbm = [f1_score(y, (oof_proba_lgbm >= t).astype(int)) for t in thresholds_lgbm]
+best_thresh_lgbm = thresholds_lgbm[int(np.argmax(f1s_lgbm))]
+lgbm_oof_labels = (oof_proba_lgbm >= best_thresh_lgbm).astype(int)
+precision_lgbm = precision_score(y, lgbm_oof_labels)
+recall_lgbm = recall_score(y, lgbm_oof_labels)
+f1_lgbm = float(np.max(f1s_lgbm))
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 fig.suptitle(f"LightGBM — OOF AUC={oof_auc_lgbm:.4f}", fontsize=14)
@@ -842,12 +867,18 @@ pd.DataFrame([{
     "model":              "LightGBM",
     "oof_auc":            float(oof_auc_lgbm),
     "oof_ap":             float(ap_lgbm),
+    "oof_pr_auc":         float(pr_auc_lgbm),
+    "oof_precision":      float(precision_lgbm),
+    "oof_recall":         float(recall_lgbm),
+    "oof_f1":             float(f1_lgbm),
+    "best_threshold":     float(best_thresh_lgbm),
     "oof_pred_bot_rate":  float(oof_proba_lgbm.mean()),
     "test_pred_bot_rate": float(test_proba_lgbm.mean()),
 }]).to_csv(f"{LGBM_LOG}/lgbm_summary.csv", index=False)
 
 print(f"\n✓ LightGBM baseline complete.")
-print(f"  OOF AUC   : {oof_auc_lgbm:.4f}  |  OOF AP : {ap_lgbm:.4f}")
+print(f"  OOF AUC   : {oof_auc_lgbm:.4f}  |  OOF AP : {ap_lgbm:.4f}  |  PR-AUC : {pr_auc_lgbm:.4f}")
+print(f"  Precision : {precision_lgbm:.4f}  |  Recall : {recall_lgbm:.4f}  |  F1 : {f1_lgbm:.4f}  (thresh={best_thresh_lgbm:.2f})")
 print(f"  Avg iter  : {avg_iter}")
 print(f"  Plots     : {LGBM_DIR}/lgbm_*.png")
 print(f"  Submission: {LGBM_DIR}/lgbm_submission.csv")

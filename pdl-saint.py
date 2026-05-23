@@ -13,7 +13,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import (
     roc_auc_score, average_precision_score, roc_curve, precision_recall_curve,
-    confusion_matrix, classification_report, f1_score,
+    confusion_matrix, classification_report, f1_score, auc, precision_score, recall_score,
 )
 import torch
 import torch.nn as nn
@@ -533,6 +533,9 @@ fpr, tpr, _ = roc_curve(y_train, oof_preds)
 prec, rec, _ = precision_recall_curve(y_train, oof_preds)
 auc_roc = roc_auc_score(y_train, oof_preds)
 ap_oof  = average_precision_score(y_train, oof_preds)
+pr_auc_saint = auc(rec, prec)
+precision_saint = precision_score(y_train, oof_labels)
+recall_saint = recall_score(y_train, oof_labels)
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 fig.suptitle("OOF Performance — SAINT", fontsize=14, y=1.01)
@@ -691,7 +694,10 @@ summary = {
     "CV AP  (mean)"     : f"{np.mean(fold_aps):.4f}",
     "OOF AUC"           : f"{auc_roc:.4f}",
     "OOF AP"            : f"{ap_oof:.4f}",
-    "Best F1"           : f"{best_f1:.4f}",
+    "OOF PR-AUC"        : f"{pr_auc_saint:.4f}",
+    "OOF Precision"     : f"{precision_saint:.4f}",
+    "OOF Recall"        : f"{recall_saint:.4f}",
+    "OOF F1"            : f"{best_f1:.4f}",
     "Best Threshold"    : f"{best_thresh:.2f}",
     "Explainability"    : "SHAP GradientExplainer",
 }
@@ -702,10 +708,13 @@ pd.DataFrame([{
     "model"         : "SAINT",
     "oof_auc"       : float(auc_roc),
     "oof_ap"        : float(ap_oof),
+    "oof_pr_auc"    : float(pr_auc_saint),
+    "oof_precision" : float(precision_saint),
+    "oof_recall"    : float(recall_saint),
+    "oof_f1"        : float(best_f1),
+    "best_threshold": float(best_thresh),
     "cv_auc_mean"   : float(np.mean(fold_aucs)),
     "cv_auc_std"    : float(np.std(fold_aucs)),
     "cv_ap_mean"    : float(np.mean(fold_aps)),
-    "best_f1"       : float(best_f1),
-    "best_threshold": float(best_thresh),
 }]).to_csv("result/logs/saint/saint_summary.csv", index=False)
 print("  Saved result/logs/saint/saint_summary.csv")
