@@ -18,7 +18,8 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import QuantileTransformer, RobustScaler
 from sklearn.metrics import (
     roc_auc_score, roc_curve, confusion_matrix, classification_report,
-    precision_recall_curve, average_precision_score,
+    precision_recall_curve, average_precision_score, auc,
+    f1_score, precision_score, recall_score,
 )
 from utils.shared import PALETTE, configure_plots, save_fig
 
@@ -505,12 +506,25 @@ for fold, (tr_idx, val_idx) in enumerate(folds, start=1):
 tabm_test_proba = tabm_test_probas.mean(axis=1)
 tabm_oof_auc = roc_auc_score(y, tabm_oof_proba)
 tabm_oof_ap = average_precision_score(y, tabm_oof_proba)
+tabm_prec, tabm_rec, _ = precision_recall_curve(y, tabm_oof_proba)
+tabm_pr_auc = auc(tabm_rec, tabm_prec)
+
+tabm_thresholds_search = np.arange(0.05, 0.95, 0.01)
+tabm_f1s = [f1_score(y, (tabm_oof_proba >= t).astype(int)) for t in tabm_thresholds_search]
+tabm_best_thresh = tabm_thresholds_search[int(np.argmax(tabm_f1s))]
+tabm_oof_labels_best = (tabm_oof_proba >= tabm_best_thresh).astype(int)
+tabm_oof_precision = precision_score(y, tabm_oof_labels_best)
+tabm_oof_recall = recall_score(y, tabm_oof_labels_best)
+tabm_oof_f1 = float(np.max(tabm_f1s))
 
 print("\n" + "="*60)
 print("TABM SUMMARY")
 print("="*60)
 print(f"OOF AUC : {tabm_oof_auc:.4f}")
 print(f"OOF AP  : {tabm_oof_ap:.4f}")
+print(f"OOF PR-AUC  : {tabm_pr_auc:.4f}")
+print(f"OOF F1      : {tabm_oof_f1:.4f}  (thresh={tabm_best_thresh:.2f})")
+print(f"OOF Prec    : {tabm_oof_precision:.4f}  |  OOF Recall : {tabm_oof_recall:.4f}")
 print(f"OOF bot-rate mean  : {tabm_oof_proba.mean():.4f}")
 print(f"Test bot-rate mean : {tabm_test_proba.mean():.4f}")
 
@@ -524,10 +538,15 @@ pd.DataFrame({
 }).to_csv("result/logs/tabm/tabm_oof_predictions.csv", index=False)
 
 tabm_summary_df = pd.DataFrame([{
-    "model": "TabM",
-    "oof_auc": float(tabm_oof_auc),
-    "oof_ap": float(tabm_oof_ap),
-    "oof_pred_bot_rate": float(tabm_oof_proba.mean()),
+    "model":              "TabM",
+    "oof_auc":            float(tabm_oof_auc),
+    "oof_ap":             float(tabm_oof_ap),
+    "oof_pr_auc":         float(tabm_pr_auc),
+    "oof_precision":      float(tabm_oof_precision),
+    "oof_recall":         float(tabm_oof_recall),
+    "oof_f1":             float(tabm_oof_f1),
+    "best_threshold":     float(tabm_best_thresh),
+    "oof_pred_bot_rate":  float(tabm_oof_proba.mean()),
     "test_pred_bot_rate": float(tabm_test_proba.mean()),
 }])
 tabm_summary_df.to_csv("result/logs/tabm/tabm_summary.csv", index=False)
@@ -557,7 +576,7 @@ neutral_color = PALETTE.get("neutral", "#6C757D")
 # 5a. ROC + PR curves
 # -------------------------------------------------------------------------
 fpr, tpr, _ = roc_curve(y, tabm_oof_proba)
-prec, rec, _ = precision_recall_curve(y, tabm_oof_proba)
+prec, rec = tabm_prec, tabm_rec
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 fig.suptitle(f"TabM — OOF AUC={tabm_oof_auc:.4f}", fontsize=14)
@@ -676,8 +695,8 @@ print(submission_tabm.head(10).to_string())
 print(f"\nPredicted bot rate (test): {tabm_test_proba.mean():.4f}")
 
 print("\n✓ TabM ensemble pipeline complete.")
-print(f"  OOF AUC   : {tabm_oof_auc:.4f}")
-print(f"  OOF AP    : {tabm_oof_ap:.4f}")
+print(f"  OOF AUC   : {tabm_oof_auc:.4f}  |  OOF AP : {tabm_oof_ap:.4f}  |  PR-AUC : {tabm_pr_auc:.4f}")
+print(f"  Precision : {tabm_oof_precision:.4f}  |  Recall : {tabm_oof_recall:.4f}  |  F1 : {tabm_oof_f1:.4f}  (thresh={tabm_best_thresh:.2f})")
 print(f"  Plots     : ./result/tabm/tabm_*.png")
 print(f"  Submission: ./result/tabm/tabm_submission.csv")
 

@@ -7,7 +7,10 @@ import os
 from datetime import datetime
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import classification_report, roc_auc_score, average_precision_score, precision_recall_curve
+from sklearn.metrics import (
+    classification_report, roc_auc_score, average_precision_score,
+    precision_recall_curve, auc, precision_score, recall_score,
+)
 from torch_geometric.nn import HypergraphConv
 import copy
 from utils.shared import DualLogger, setup_logger, FocalLoss
@@ -319,6 +322,9 @@ def train_kfold(k=5):
     best_idx = np.argmax(f1_scores)
     best_f1 = f1_scores[best_idx]
     best_thresh = thresholds[best_idx]
+    pr_auc = auc(rec, prec)
+    precision_at_thresh = float(prec[best_idx])
+    recall_at_thresh = float(rec[best_idx])
 
     print("\n" + "=" * 60)
     print("FINAL SUMMARY (ST-MV-HGNN)")
@@ -330,7 +336,10 @@ def train_kfold(k=5):
     print(f"  CV AP  (mean)            : {np.mean(fold_aps):.4f}")
     print(f"  OOF AUC                  : {oof_auc:.4f}")
     print(f"  OOF AP                   : {oof_ap:.4f}")
-    print(f"  Best F1                  : {best_f1:.4f}")
+    print(f"  OOF PR-AUC               : {pr_auc:.4f}")
+    print(f"  OOF Precision            : {precision_at_thresh:.4f}")
+    print(f"  OOF Recall               : {recall_at_thresh:.4f}")
+    print(f"  OOF F1                   : {best_f1:.4f}")
     print(f"  Best Threshold           : {best_thresh:.4f}")
     print("=" * 60 + "\n")
 
@@ -338,14 +347,17 @@ def train_kfold(k=5):
 
     os.makedirs("result/logs/stmvhgnn", exist_ok=True)
     pd.DataFrame([{
-        "model": "ST-MV-HGNN",
-        "oof_auc": float(oof_auc),
-        "oof_ap": float(oof_ap),
-        "cv_auc_mean": float(np.mean(fold_aucs)),
-        "cv_auc_std": float(np.std(fold_aucs)),
-        "cv_ap_mean": float(np.mean(fold_aps)),
-        "best_f1": float(best_f1),
+        "model":          "ST-MV-HGNN",
+        "oof_auc":        float(oof_auc),
+        "oof_ap":         float(oof_ap),
+        "oof_pr_auc":     float(pr_auc),
+        "oof_precision":  float(precision_at_thresh),
+        "oof_recall":     float(recall_at_thresh),
+        "oof_f1":         float(best_f1),
         "best_threshold": float(best_thresh),
+        "cv_auc_mean":    float(np.mean(fold_aucs)),
+        "cv_auc_std":     float(np.std(fold_aucs)),
+        "cv_ap_mean":     float(np.mean(fold_aps)),
     }]).to_csv("result/logs/stmvhgnn/stmvhgnn_summary.csv", index=False)
     print("Saved result/logs/stmvhgnn/stmvhgnn_summary.csv")
 
