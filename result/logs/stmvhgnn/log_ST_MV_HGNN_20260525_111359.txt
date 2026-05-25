@@ -1,0 +1,117 @@
+Using GPU: NVIDIA A100-SXM4-80GB
+Detected 15 temporal features for 5 time strips.
+Multi-View Hypergraphs constructed successfully.
+Starting 5-Fold Cross-Validation with Checkpointing...
+
+--- FOLD 1 ---
+Epoch 0 | Loss: 0.0417 | Val AUC: 0.7784 (Best: 0.7784)
+Epoch 10 | Loss: 0.0203 | Val AUC: 0.8565 (Best: 0.8565)
+Epoch 20 | Loss: 0.0120 | Val AUC: 0.8672 (Best: 0.8672)
+Epoch 30 | Loss: 0.0120 | Val AUC: 0.8826 (Best: 0.8826)
+Epoch 40 | Loss: 0.0103 | Val AUC: 0.8879 (Best: 0.8897)
+Epoch 50 | Loss: 0.0094 | Val AUC: 0.8824 (Best: 0.8909)
+Epoch 60 | Loss: 0.0083 | Val AUC: 0.8828 (Best: 0.8909)
+Epoch 70 | Loss: 0.0080 | Val AUC: 0.8873 (Best: 0.8909)
+Epoch 80 | Loss: 0.0071 | Val AUC: 0.8858 (Best: 0.8909)
+Early stopping triggered at epoch 81
+Fold 1 Finished. Best Fold AUC: 0.8909
+
+--- FOLD 2 ---
+Epoch 0 | Loss: 0.0705 | Val AUC: 0.8603 (Best: 0.8603)
+Epoch 10 | Loss: 0.0163 | Val AUC: 0.9137 (Best: 0.9137)
+Epoch 20 | Loss: 0.0137 | Val AUC: 0.9074 (Best: 0.9144)
+Epoch 30 | Loss: 0.0130 | Val AUC: 0.9121 (Best: 0.9144)
+Epoch 40 | Loss: 0.0114 | Val AUC: 0.9135 (Best: 0.9144)
+Epoch 50 | Loss: 0.0112 | Val AUC: 0.9175 (Best: 0.9206)
+Epoch 60 | Loss: 0.0109 | Val AUC: 0.9243 (Best: 0.9243)
+Epoch 70 | Loss: 0.0101 | Val AUC: 0.9296 (Best: 0.9296)
+Epoch 80 | Loss: 0.0097 | Val AUC: 0.9299 (Best: 0.9299)
+Epoch 90 | Loss: 0.0096 | Val AUC: 0.9356 (Best: 0.9356)
+Epoch 100 | Loss: 0.0100 | Val AUC: 0.9361 (Best: 0.9361)
+Epoch 110 | Loss: 0.0093 | Val AUC: 0.9369 (Best: 0.9379)
+Epoch 120 | Loss: 0.0092 | Val AUC: 0.9377 (Best: 0.9380)
+Epoch 130 | Loss: 0.0089 | Val AUC: 0.9380 (Best: 0.9385)
+Epoch 140 | Loss: 0.0088 | Val AUC: 0.9378 (Best: 0.9385)
+Epoch 150 | Loss: 0.0088 | Val AUC: 0.9378 (Best: 0.9385)
+Epoch 160 | Loss: 0.0087 | Val AUC: 0.9378 (Best: 0.9385)
+Early stopping triggered at epoch 165
+Fold 2 Finished. Best Fold AUC: 0.9385
+
+--- FOLD 3 ---
+Epoch 0 | Loss: 0.0775 | Val AUC: 0.7812 (Best: 0.7812)
+Epoch 10 | Loss: 0.0148 | Val AUC: 0.8785 (Best: 0.8813)
+Epoch 20 | Loss: 0.0129 | Val AUC: 0.8851 (Best: 0.8851)
+Epoch 30 | Loss: 0.0129 | Val AUC: 0.8881 (Best: 0.8881)
+Epoch 40 | Loss: 0.0112 | Val AUC: 0.8884 (Best: 0.8884)
+Epoch 50 | Loss: 0.0109 | Val AUC: 0.8902 (Best: 0.8912)
+Epoch 60 | Loss: 0.0111 | Val AUC: 0.8927 (Best: 0.8928)
+Epoch 70 | Loss: 0.0102 | Val AUC: 0.8888 (Best: 0.8928)
+Epoch 80 | Loss: 0.0101 | Val AUC: 0.8873 (Best: 0.8928)
+Epoch 90 | Loss: 0.0098 | Val AUC: 0.8812 (Best: 0.8928)
+Early stopping triggered at epoch 99
+Fold 3 Finished. Best Fold AUC: 0.8928
+
+--- FOLD 4 ---
+Epoch 0 | Loss: 0.1251 | Val AUC: 0.6314 (Best: 0.6314)
+Epoch 10 | Loss: 0.0163 | Val AUC: 0.8246 (Best: 0.8246)
+Epoch 20 | Loss: 0.0131 | Val AUC: 0.8384 (Best: 0.8387)
+Epoch 30 | Loss: 0.0125 | Val AUC: 0.8335 (Best: 0.8387)
+Epoch 40 | Loss: 0.0123 | Val AUC: 0.8378 (Best: 0.8387)
+Epoch 50 | Loss: 0.0121 | Val AUC: 0.8425 (Best: 0.8425)
+Epoch 60 | Loss: 0.0121 | Val AUC: 0.8470 (Best: 0.8470)
+Epoch 70 | Loss: 0.0112 | Val AUC: 0.8533 (Best: 0.8533)
+Epoch 80 | Loss: 0.0109 | Val AUC: 0.8565 (Best: 0.8565)
+Epoch 90 | Loss: 0.0111 | Val AUC: 0.8599 (Best: 0.8599)
+Epoch 100 | Loss: 0.0109 | Val AUC: 0.8616 (Best: 0.8618)
+Epoch 110 | Loss: 0.0109 | Val AUC: 0.8639 (Best: 0.8643)
+Epoch 120 | Loss: 0.0108 | Val AUC: 0.8643 (Best: 0.8643)
+Epoch 130 | Loss: 0.0110 | Val AUC: 0.8648 (Best: 0.8648)
+Epoch 140 | Loss: 0.0105 | Val AUC: 0.8653 (Best: 0.8653)
+Epoch 150 | Loss: 0.0104 | Val AUC: 0.8654 (Best: 0.8654)
+Epoch 160 | Loss: 0.0110 | Val AUC: 0.8654 (Best: 0.8654)
+Epoch 170 | Loss: 0.0105 | Val AUC: 0.8653 (Best: 0.8654)
+Epoch 180 | Loss: 0.0104 | Val AUC: 0.8671 (Best: 0.8671)
+Epoch 190 | Loss: 0.0103 | Val AUC: 0.8711 (Best: 0.8711)
+Fold 4 Finished. Best Fold AUC: 0.8762
+
+--- FOLD 5 ---
+Epoch 0 | Loss: 0.0382 | Val AUC: 0.8933 (Best: 0.8933)
+Epoch 10 | Loss: 0.0159 | Val AUC: 0.9064 (Best: 0.9219)
+Epoch 20 | Loss: 0.0126 | Val AUC: 0.9331 (Best: 0.9331)
+Epoch 30 | Loss: 0.0124 | Val AUC: 0.9340 (Best: 0.9346)
+Epoch 40 | Loss: 0.0116 | Val AUC: 0.9254 (Best: 0.9353)
+Epoch 50 | Loss: 0.0114 | Val AUC: 0.9255 (Best: 0.9353)
+Epoch 60 | Loss: 0.0111 | Val AUC: 0.9238 (Best: 0.9353)
+Epoch 70 | Loss: 0.0112 | Val AUC: 0.9188 (Best: 0.9353)
+Early stopping triggered at epoch 71
+Fold 5 Finished. Best Fold AUC: 0.9353
+
+============================================================
+FINAL SUMMARY (ST-MV-HGNN)
+============================================================
+  Model                    : ST-MV-HGNN (Spatio-Temporal Multi-View Hypergraph)
+  CV Folds                 : 5
+  CV AUC (mean)            : 0.9068
+  CV AUC (std)             : 0.0253
+  CV AP  (mean)            : 0.4378
+  OOF AUC                  : 0.8982
+  OOF AP                   : 0.3977
+  OOF PR-AUC               : 0.3926
+  OOF Precision            : 0.4380
+  OOF Recall               : 0.5146
+  OOF F1                   : 0.4732
+  Best Threshold           : 0.5257
+============================================================
+
+              precision    recall  f1-score   support
+
+       Human       0.97      0.96      0.97      1910
+       Robot       0.43      0.50      0.47       103
+
+    accuracy                           0.94      2013
+   macro avg       0.70      0.73      0.72      2013
+weighted avg       0.95      0.94      0.94      2013
+
+Saved result/logs/stmvhgnn/stmvhgnn_summary.csv
+
+Final submission generated: result/stmvhgnn/stmvhgnn_final_oof_results.csv
