@@ -401,6 +401,8 @@ test_preds = np.zeros(len(X_test_scaled), dtype=np.float32)
 
 fold_aucs, fold_aps = [], []
 fold_models = []
+fold_train_loss_curves = []
+fold_val_auc_curves    = []
 
 X_test_tensor = torch.tensor(X_test_scaled, dtype=torch.float32)
 
@@ -441,6 +443,7 @@ for fold, (tr_idx, val_idx) in enumerate(skf.split(X_train_scaled, y_train), 1):
     )
 
     best_auc, best_state, patience_ctr = 0.0, None, 0
+    epoch_train_losses, epoch_val_aucs = [], []
 
     for epoch in range(1, MAX_EPOCHS + 1):
         model.train()
@@ -470,6 +473,8 @@ for fold, (tr_idx, val_idx) in enumerate(skf.split(X_train_scaled, y_train), 1):
 
         val_preds = torch.cat(preds).numpy()
         val_auc   = roc_auc_score(y_val_np, val_preds)
+        epoch_train_losses.append(train_loss / len(train_dl))
+        epoch_val_aucs.append(val_auc)
 
         if val_auc > best_auc:
             best_auc    = val_auc
@@ -487,6 +492,9 @@ for fold, (tr_idx, val_idx) in enumerate(skf.split(X_train_scaled, y_train), 1):
         if patience_ctr >= PATIENCE:
             print(f"    Early stopping at epoch {epoch}")
             break
+
+    fold_train_loss_curves.append(epoch_train_losses)
+    fold_val_auc_curves.append(epoch_val_aucs)
 
     model.load_state_dict(best_state)
     model.to(DEVICE).eval()
@@ -512,6 +520,36 @@ print(f"\n{'='*60}")
 print(f"  CV AUC : {np.mean(fold_aucs):.4f} ± {np.std(fold_aucs):.4f}")
 print(f"  CV AP  : {np.mean(fold_aps):.4f} ± {np.std(fold_aps):.4f}")
 print(f"{'='*60}")
+
+# ─── Training Curves ──────────────────────────────────────────────────────────
+fig, axes = plt.subplots(1, 2, figsize=(16, 5))
+fig.suptitle("SAINT — Training Curves (per fold)", fontsize=14, y=1.01)
+
+colors = plt.cm.tab10.colors
+
+ax = axes[0]
+for i, losses in enumerate(fold_train_loss_curves):
+    ax.plot(range(1, len(losses) + 1), losses,
+            color=colors[i % 10], lw=1.5, label=f"Fold {i+1}")
+ax.set_xlabel("Epoch")
+ax.set_ylabel("BCE Loss (train)")
+ax.set_title("Training Loss")
+ax.legend(fontsize=8)
+
+ax = axes[1]
+for i, aucs in enumerate(fold_val_auc_curves):
+    best_ep = int(np.argmax(aucs)) + 1
+    ax.plot(range(1, len(aucs) + 1), aucs,
+            color=colors[i % 10], lw=1.5, label=f"Fold {i+1} (best={max(aucs):.4f})")
+    ax.axvline(best_ep, color=colors[i % 10], ls=":", lw=1, alpha=0.6)
+ax.set_xlabel("Epoch")
+ax.set_ylabel("Validation AUC")
+ax.set_title("Validation AUC")
+ax.legend(fontsize=8)
+
+plt.tight_layout()
+save_fig(fig, SAVE_DIR, "00b_training_curves")
+print(f"  Saved training curves → {SAVE_DIR}/00b_training_curves.png")
 
 
 # ─── 9. OOF Evaluation ────────────────────────────────────────────────────────
