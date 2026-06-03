@@ -1,0 +1,123 @@
+Using GPU: NVIDIA GeForce RTX 3090
+Detected 15 temporal features for 5 time strips.
+Hyperedge weights calculated for 2326393 unique auctions/IPs/Devices.
+Hyperedge weights normalized. Mean: 1.0000
+Starting 5-Fold Cross-Validation with Checkpointing...
+
+--- FOLD 1 ---
+Epoch 0 | Loss: 0.0786 | Val AUC: 0.8131 (Best: 0.8131)
+Epoch 10 | Loss: 0.0166 | Val AUC: 0.8468 (Best: 0.8564)
+Epoch 20 | Loss: 0.0106 | Val AUC: 0.8606 (Best: 0.8606)
+Epoch 30 | Loss: 0.0095 | Val AUC: 0.8630 (Best: 0.8641)
+Epoch 40 | Loss: 0.0089 | Val AUC: 0.8637 (Best: 0.8641)
+Epoch 50 | Loss: 0.0091 | Val AUC: 0.8636 (Best: 0.8647)
+Epoch 60 | Loss: 0.0081 | Val AUC: 0.8687 (Best: 0.8687)
+Epoch 70 | Loss: 0.0080 | Val AUC: 0.8685 (Best: 0.8687)
+Epoch 80 | Loss: 0.0074 | Val AUC: 0.8677 (Best: 0.8687)
+Epoch 90 | Loss: 0.0074 | Val AUC: 0.8690 (Best: 0.8699)
+Epoch 100 | Loss: 0.0073 | Val AUC: 0.8702 (Best: 0.8704)
+Epoch 110 | Loss: 0.0076 | Val AUC: 0.8720 (Best: 0.8721)
+Epoch 120 | Loss: 0.0075 | Val AUC: 0.8717 (Best: 0.8721)
+Epoch 130 | Loss: 0.0083 | Val AUC: 0.8714 (Best: 0.8721)
+Epoch 140 | Loss: 0.0071 | Val AUC: 0.8711 (Best: 0.8721)
+Early stopping triggered at epoch 142
+Fold 1 Finished. Best Fold AUC: 0.8721
+
+--- FOLD 2 ---
+Epoch 0 | Loss: 0.0228 | Val AUC: 0.8054 (Best: 0.8054)
+Epoch 10 | Loss: 0.0140 | Val AUC: 0.9119 (Best: 0.9119)
+Epoch 20 | Loss: 0.0117 | Val AUC: 0.9243 (Best: 0.9245)
+Epoch 30 | Loss: 0.0106 | Val AUC: 0.9306 (Best: 0.9306)
+Epoch 40 | Loss: 0.0102 | Val AUC: 0.9299 (Best: 0.9314)
+Epoch 50 | Loss: 0.0098 | Val AUC: 0.9301 (Best: 0.9314)
+Early stopping triggered at epoch 56
+Fold 2 Finished. Best Fold AUC: 0.9314
+
+--- FOLD 3 ---
+Epoch 0 | Loss: 0.2145 | Val AUC: 0.7994 (Best: 0.7994)
+Epoch 10 | Loss: 0.0189 | Val AUC: 0.7366 (Best: 0.8621)
+Epoch 20 | Loss: 0.0121 | Val AUC: 0.8867 (Best: 0.8909)
+Epoch 30 | Loss: 0.0102 | Val AUC: 0.8786 (Best: 0.8909)
+Epoch 40 | Loss: 0.0098 | Val AUC: 0.8761 (Best: 0.8909)
+Early stopping triggered at epoch 42
+Fold 3 Finished. Best Fold AUC: 0.8909
+
+--- FOLD 4 ---
+Epoch 0 | Loss: 0.0995 | Val AUC: 0.7831 (Best: 0.7831)
+Epoch 10 | Loss: 0.0179 | Val AUC: 0.8510 (Best: 0.8729)
+Epoch 20 | Loss: 0.0117 | Val AUC: 0.8692 (Best: 0.8991)
+Epoch 30 | Loss: 0.0104 | Val AUC: 0.8743 (Best: 0.8991)
+Early stopping triggered at epoch 38
+Fold 4 Finished. Best Fold AUC: 0.8991
+
+--- FOLD 5 ---
+Epoch 0 | Loss: 0.0419 | Val AUC: 0.5179 (Best: 0.5179)
+Epoch 10 | Loss: 0.0249 | Val AUC: 0.7925 (Best: 0.9154)
+Epoch 20 | Loss: 0.0123 | Val AUC: 0.9263 (Best: 0.9293)
+Epoch 30 | Loss: 0.0112 | Val AUC: 0.9219 (Best: 0.9293)
+Epoch 40 | Loss: 0.0103 | Val AUC: 0.9260 (Best: 0.9293)
+Early stopping triggered at epoch 41
+Fold 5 Finished. Best Fold AUC: 0.9293
+
+============================================================
+FINAL SUMMARY (ST-HGNN)
+============================================================
+  Model                    : ST-HGNN (Spatio-Temporal Hypergraph)
+  CV Folds                 : 5
+  CV AUC (mean)            : 0.9046
+  CV AUC (std)             : 0.0228
+  CV AP  (mean)            : 0.3996
+  OOF AUC                  : 0.8887
+  OOF AP                   : 0.3348
+  OOF PR-AUC               : 0.3299
+  OOF Precision            : 0.3333
+  OOF Recall               : 0.5631
+  OOF F1                   : 0.4188
+  Best Threshold           : 0.5298
+============================================================
+
+              precision    recall  f1-score   support
+
+       Human       0.97      0.94      0.96      1910
+       Robot       0.33      0.55      0.41       103
+
+    accuracy                           0.92      2013
+   macro avg       0.65      0.75      0.68      2013
+weighted avg       0.94      0.92      0.93      2013
+
+
+Saving Experiment Artifacts...
+Saved all CSV artifacts to result/logs/sthgnn/ and result/sthgnn/
+
+Generating Evaluation Plots...
+  ↳ Saved  result/sthgnn\sthgnn_01_roc_pr.png
+  ↳ Saved  result/sthgnn\sthgnn_02_confusion_matrix.png
+  ↳ Saved  result/sthgnn\sthgnn_03_score_distribution.png
+Plots successfully saved to result/sthgnn/
+
+============================================================
+5. EXPLAINABILITY (XAI) — PERMUTATION IMPORTANCE
+============================================================
+Computing permutation importance on the final fold validation set...
+
+Top global features:
+                   feature  baseline_auc  permuted_auc  auc_drop
+           subnets_per_bid      0.929319      0.921204  0.008115
+                 time_span      0.929319      0.921990  0.007330
+        merch_mobile_ratio      0.929319      0.922382  0.006937
+        top5_country_ratio      0.929319      0.922644  0.006675
+               ips_per_bid      0.929319      0.923037  0.006283
+      log_burst_max_strip1      0.929319      0.924607  0.004712
+merch_sporting goods_ratio      0.929319      0.925000  0.004319
+      log_burst_max_strip4      0.929319      0.925393  0.003927
+        burst_ratio_strip1      0.929319      0.926832  0.002487
+          burst_max_strip1      0.929319      0.926832  0.002487
+          burst_max_strip5      0.929319      0.926963  0.002356
+           unique_auctions      0.929319      0.926963  0.002356
+       log_unique_auctions      0.929319      0.927094  0.002225
+            time_diff_mean      0.929319      0.927094  0.002225
+         countries_per_bid      0.929319      0.927356  0.001963
+
+Saved XAI results to result/logs/sthgnn/sthgnn_xai_global_importance.csv
+  ↳ Saved  result/sthgnn\sthgnn_04_xai_importance.png
+Saved XAI plot to result/sthgnn/sthgnn_04_xai_importance.png

@@ -9,15 +9,19 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import (
     classification_report, roc_auc_score, average_precision_score,
-    precision_recall_curve, auc, precision_score, recall_score,
+    precision_recall_curve, auc, confusion_matrix, roc_curve
 )
+import matplotlib.pyplot as plt
+import seaborn as sns
 from torch_geometric.nn import HypergraphConv
 import copy
-from utils.shared import DualLogger, setup_logger, FocalLoss
 
+from utils.shared import DualLogger, setup_logger, FocalLoss, PALETTE, configure_plots, save_fig
+
+configure_plots()
 
 # =============================================================================
-# 1. SETUP & DATA CONSTRUCTION
+# 1. SETUP & MULTI-VIEW HYPERGRAPH CONSTRUCTION (OOM-SAFE)
 # =============================================================================
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 setup_logger("./result/logs/sthgnn", f"ST_HGNN_{timestamp}")
@@ -188,6 +192,9 @@ def train_kfold(k=5):
     oof_probs = np.zeros(len(labeled_indices))
     test_probs_acc = np.zeros(num_nodes)
 
+    fold_metrics = []
+    all_fold_history = []
+
     criterion = FocalLoss(alpha=0.85, gamma=2.5)
 
     print(f"Starting {k}-Fold Cross-Validation with Checkpointing...")
@@ -226,6 +233,13 @@ def train_kfold(k=5):
                 v_labels_epoch = y[f_val_mask].cpu().numpy()
                 val_auc = roc_auc_score(v_labels_epoch, v_probs_epoch)
 
+                all_fold_history.append({
+                    "fold": fold + 1,
+                    "epoch": epoch,
+                    "train_loss": loss.item(),
+                    "val_auc": float(val_auc)
+                })
+
                 if val_auc > best_auc:
                     best_auc = val_auc
                     best_model_state = copy.deepcopy(model.state_dict())
@@ -255,6 +269,12 @@ def train_kfold(k=5):
             fold_aucs.append(roc_auc_score(v_labels, v_probs))
             fold_aps.append(average_precision_score(v_labels, v_probs))
             test_probs_acc += full_probs / k
+
+        fold_metrics.append({
+            "fold": fold + 1,
+            "auc": fold_aucs[-1],
+            "ap": fold_aps[-1]
+        })
 
         print(f"Fold {fold + 1} Finished. Best Fold AUC: {fold_aucs[-1]:.4f}")
 
@@ -306,16 +326,151 @@ def train_kfold(k=5):
         "cv_auc_std":     float(np.std(fold_aucs)),
         "cv_ap_mean":     float(np.mean(fold_aps)),
     }]).to_csv("result/logs/sthgnn/sthgnn_summary.csv", index=False)
-    print("Saved result/logs/sthgnn/sthgnn_summary.csv")
 
-    return test_probs_acc
+    return test_probs_acc, oof_probs, labeled_y, best_thresh, pd.DataFrame(fold_metrics), pd.DataFrame(all_fold_history), model, v_idx
 
+# =============================================================================
+# 4. EXECUTION, PLOTTING & EXPORT PIPELINE
+# =============================================================================
+MODEL_NAME = "sthgnn"
+SAVE_DIR = f"result/{MODEL_NAME}"
+LOGS_DIR = f"result/logs/{MODEL_NAME}"
+os.makedirs(SAVE_DIR, exist_ok=True)
+os.makedirs(LOGS_DIR, exist_ok=True)
 
-# Execute and Save
-final_test_probs = train_kfold(k=5)
+final_test_probs, oof_probs, labeled_y_true, best_thresh, df_fold_metrics, df_history, last_model, last_v_idx = train_kfold(
+    k=5)
 
-os.makedirs("result/sthgnn", exist_ok=True)
+print("\nSaving Experiment Artifacts...")
+
+df_fold_metrics.to_csv(f"{LOGS_DIR}/{MODEL_NAME}_fold_metrics.csv", index=False)
+df_history.to_csv(f"{LOGS_DIR}/{MODEL_NAME}_history_all_folds.csv", index=False)
+
+labeled_indices = np.where(labels != -1)[0]
+oof_bidders = [all_bidders[idx] for idx in labeled_indices]
+pd.DataFrame({
+    "bidder_id": oof_bidders,
+    "outcome": labeled_y_true,
+    f"{MODEL_NAME}_oof_proba": oof_probs,
+}).to_csv(f"{LOGS_DIR}/{MODEL_NAME}_oof_predictions.csv", index=False)
+
 test_bidders = test_df['bidder_id'].values
 test_preds = [final_test_probs[bidder_to_idx[b_id]] for b_id in test_bidders]
-pd.DataFrame({'bidder_id': test_bidders, 'prediction': test_preds}).to_csv("result/sthgnn/sthgnn_final_oof_results.csv", index=False)
-print("\nFinal submission generated: result/sthgnn/sthgnn_final_oof_results.csv")
+pd.DataFrame({
+    'bidder_id': test_bidders,
+    'prediction': test_preds
+}).to_csv(f"{SAVE_DIR}/{MODEL_NAME}_submission.csv", index=False)
+
+print(f"Saved all CSV artifacts to {LOGS_DIR}/ and {SAVE_DIR}/")
+
+print("\nGenerating Evaluation Plots...")
+oof_labels_pred = (oof_probs >= best_thresh).astype(int)
+fpr, tpr, _ = roc_curve(labeled_y_true, oof_probs)
+prec, rec, _ = precision_recall_curve(labeled_y_true, oof_probs)
+oof_auc = roc_auc_score(labeled_y_true, oof_probs)
+oof_ap = average_precision_score(labeled_y_true, oof_probs)
+
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+fig.suptitle(f"{MODEL_NAME.upper()} — OOF Performance", fontsize=14, y=1.01)
+
+axes[0].plot(fpr, tpr, color=PALETTE.get("bot", "#E84545"), lw=2, label=f"ROC (AUC={oof_auc:.4f})")
+axes[0].plot([0, 1], [0, 1], color="#4A4D5A", ls="--", lw=1)
+axes[0].set_xlabel("False Positive Rate");
+axes[0].set_ylabel("True Positive Rate")
+axes[0].set_title("ROC Curve");
+axes[0].legend()
+
+axes[1].plot(rec, prec, color=PALETTE.get("human", "#2B9EB3"), lw=2, label=f"PR (AP={oof_ap:.4f})")
+axes[1].set_xlabel("Recall");
+axes[1].set_ylabel("Precision")
+axes[1].set_title("Precision-Recall Curve");
+axes[1].legend()
+
+plt.tight_layout()
+save_fig(fig, SAVE_DIR, f"{MODEL_NAME}_01_roc_pr")
+
+fig, ax = plt.subplots(figsize=(5, 4))
+cm = confusion_matrix(labeled_y_true, oof_labels_pred)
+sns.heatmap(cm, annot=True, fmt="d", cmap="viridis",
+            xticklabels=["Human", "Bot"], yticklabels=["Human", "Bot"],
+            ax=ax, linewidths=0.5)
+ax.set_xlabel("Predicted");
+ax.set_ylabel("Actual")
+ax.set_title(f"OOF Confusion Matrix (thresh={best_thresh:.2f})")
+plt.tight_layout()
+save_fig(fig, SAVE_DIR, f"{MODEL_NAME}_02_confusion_matrix")
+
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.hist(oof_probs[labeled_y_true == 0], bins=50, alpha=0.7, color=PALETTE.get("human", "#2B9EB3"), label="Human (0)")
+ax.hist(oof_probs[labeled_y_true == 1], bins=50, alpha=0.7, color=PALETTE.get("bot", "#E84545"), label="Bot (1)")
+ax.axvline(best_thresh, color=PALETTE.get("accent", "#F39C12"), ls="--", lw=2, label=f"Threshold={best_thresh:.2f}")
+ax.set_xlabel("Predicted Probability (Bot)");
+ax.set_ylabel("Count")
+ax.set_title("OOF Score Distribution");
+ax.legend()
+plt.tight_layout()
+save_fig(fig, SAVE_DIR, f"{MODEL_NAME}_03_score_distribution")
+
+print(f"Plots successfully saved to {SAVE_DIR}/")
+
+# =============================================================================
+# 5. EXPLAINABILITY (XAI) — PERMUTATION IMPORTANCE
+# =============================================================================
+print("\n" + "=" * 60)
+print("5. EXPLAINABILITY (XAI) — PERMUTATION IMPORTANCE")
+print("=" * 60)
+print("Computing permutation importance on the final fold validation set...")
+
+last_model.eval()
+val_mask_indices = labeled_indices[last_v_idx]
+
+# 1. Get Baseline AUC
+with torch.no_grad():
+    base_logits = last_model(x, edge_index, hyperedge_weight).squeeze()
+    base_probs = torch.sigmoid(base_logits)[val_mask_indices].cpu().numpy()
+    base_auc_xai = roc_auc_score(labeled_y_true[last_v_idx], base_probs)
+
+perm_rows = []
+feature_names = X_raw.columns.tolist()
+
+# 2. Iterate and Shuffle Each Feature
+for j, feat_name in enumerate(feature_names):
+    x_perm = x.clone()
+    # Shuffle the j-th feature only for the validation nodes to prevent graph leakage
+    shuffled_vals = x_perm[val_mask_indices, j][torch.randperm(len(val_mask_indices))]
+    x_perm[val_mask_indices, j] = shuffled_vals
+
+    with torch.no_grad():
+        perm_logits = last_model(x_perm, edge_index, hyperedge_weight).squeeze()
+        perm_probs = torch.sigmoid(perm_logits)[val_mask_indices].cpu().numpy()
+        perm_auc = roc_auc_score(labeled_y_true[last_v_idx], perm_probs)
+
+    auc_drop = base_auc_xai - perm_auc
+    perm_rows.append({
+        "feature": feat_name,
+        "baseline_auc": base_auc_xai,
+        "permuted_auc": perm_auc,
+        "auc_drop": auc_drop
+    })
+
+# 3. Save XAI CSV
+df_perm = pd.DataFrame(perm_rows).sort_values("auc_drop", ascending=False)
+df_perm.to_csv(f"{LOGS_DIR}/{MODEL_NAME}_xai_global_importance.csv", index=False)
+print(f"\nTop global features:")
+print(df_perm.head(15).to_string(index=False))
+print(f"\nSaved XAI results to {LOGS_DIR}/{MODEL_NAME}_xai_global_importance.csv")
+
+# 4. Generate XAI Plot
+top_perm = df_perm.head(20).iloc[::-1]
+fig, ax = plt.subplots(figsize=(8, 7))
+
+# Highlight negative drops (noise) vs positive drops (important features)
+colors = [PALETTE.get("sthgnn", "#8E44AD") if val > 0 else PALETTE.get("neutral", "#6C757D") for val in
+          top_perm["auc_drop"]]
+ax.barh(top_perm["feature"], top_perm["auc_drop"], color=colors)
+
+ax.set_title(f"{MODEL_NAME.upper()} Global Feature Importance (Permutation)")
+ax.set_xlabel("AUC Drop after shuffling feature")
+plt.tight_layout()
+save_fig(fig, SAVE_DIR, f"{MODEL_NAME}_04_xai_importance")
+print(f"Saved XAI plot to {SAVE_DIR}/{MODEL_NAME}_04_xai_importance.png")
